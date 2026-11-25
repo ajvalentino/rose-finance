@@ -23,5 +23,5 @@ cat > 'dist/Rose Finance.app/Contents/Info.plist' <<'PLIST'
 </dict></plist>
 PLIST
 codesign --force --sign - 'dist/Rose Finance.app'
-ditto -c -k --keepParent 'dist/Rose Finance.app' 'dist/Rose Finance-Mac.zip'
-printf 'Built companion/dist/Rose Finance.app and Mac zip (Apple Silicon + Intel, macOS 13+).\n'
+ditto -c -k --norsrc --noextattr --noacl --keepParent 'dist/Rose Finance.app' 'dist/Rose-Finance-Mac.zip'
+printf 'Built companion/dist/Rose Finance.app and Rose-Finance-Mac.zip (Apple Silicon + Intel, macOS 13+).\n'

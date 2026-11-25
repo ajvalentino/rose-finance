@@ -3,10 +3,23 @@
 A separate, offline finance app with a calm pink interface. **Rose Finance** is a
 working name. The app never opens the parent dashboard's database or workbook.
 
-## Open the app
+## Download the Mac app
+
+**[Download Rose Finance for Mac](https://github.com/ajvalentino/rose-finance/releases/latest/download/Rose-Finance-Mac.zip)**
+
+1. Download the ZIP and double-click it to unzip.
+2. Drag **Rose Finance.app** into Applications.
+3. Open Rose Finance from Applications.
+
+No Git, compiler, or Terminal is needed for this download. Requires macOS 13 or
+later, on Apple Silicon or Intel. See [Releases](https://github.com/ajvalentino/rose-finance/releases)
+for version details. Financial data stays on your Mac when you replace the app
+with a newer version; this preview does not update automatically.
+
+## Open a locally built app
 
 The built app is `dist/Rose Finance.app`. Double-click it, or copy it to
-Applications first. Share `dist/Rose Finance-Mac.zip` to move the application.
+Applications first. Share `dist/Rose-Finance-Mac.zip` to move the application.
 It bundles its executable and uses Apple's system frameworks: no Python, Docker,
 browser, account, or network service is required. The universal build targets
 Apple Silicon and Intel Macs with macOS 13 or later. Intel is cross-compiled,
