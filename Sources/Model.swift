@@ -40,14 +40,48 @@ struct Plan: Codable, Identifiable {
     var groupID: UUID
     var cents: Int
 }
+struct ExpectedIncome: Codable {
+    var cents: Int
+    var estimated: Bool
+}
+enum PayFrequency: String, CaseIterable, Identifiable {
+    case weekly = "Every week", biweekly = "Every two weeks", twiceMonthly = "Twice a month", monthly = "Once a month"
+    var id: String { rawValue }
+    var paymentsPerYear: Int {
+        switch self { case .weekly: return 52; case .biweekly: return 26; case .twiceMonthly: return 24; case .monthly: return 12 }
+    }
+    var explanation: String {
+        switch self {
+        case .weekly: return "Paycheck × 52 ÷ 12"
+        case .biweekly: return "Paycheck × 26 ÷ 12"
+        case .twiceMonthly: return "Paycheck × 2"
+        case .monthly: return "Paycheck amount"
+        }
+    }
+    func estimate(cents: Int) throws -> Int {
+        guard cents > 0 && cents <= 99999999999 else { throw AppError.message("Enter a positive take-home paycheck amount.") }
+        // Annual average, rounded to the nearest cent (half up), without floating point.
+        let monthly = (cents * paymentsPerYear + 6) / 12
+        guard monthly <= 99999999999 else { throw AppError.message("The estimated monthly amount is too large.") }
+        return monthly
+    }
+}
 struct Ledger: Codable {
-    var version = 1
+    var version = 2
     var sample = true
     var accounts: [Account] = []
     var groups: [Group] = []
     var categories: [Category] = []
     var entries: [Entry] = []
     var plans: [Plan] = []
+    // Optional so older backups without income planning still decode safely.
+    var expectedIncome: [String: ExpectedIncome]?
+
+    mutating func setExpectedIncome(month: String, cents: Int, estimated: Bool) {
+        if expectedIncome == nil { expectedIncome = [:] }
+        expectedIncome?[month] = ExpectedIncome(cents: cents, estimated: estimated)
+        version = 2
+    }
 
     static func month(_ date: Date = Date()) -> String { day(date).prefix(7).description }
     static func day(_ date: Date = Date()) -> String {
@@ -94,11 +128,11 @@ struct Ledger: Codable {
         }
     }
     mutating func clearExamples() {
-        accounts.removeAll(); entries.removeAll(); plans.removeAll(); sample = false
+        accounts.removeAll(); entries.removeAll(); plans.removeAll(); expectedIncome = nil; sample = false
     }
     func validate() throws {
         func require(_ okay: Bool, _ message: String) throws { if !okay { throw AppError.message(message) } }
-        try require(version == 1, "This backup uses an unsupported file version.")
+        try require(version == 1 || version == 2, "This backup uses an unsupported file version.")
         try require(accounts.count <= 1000 && groups.count <= 1000 && categories.count <= 10000 && entries.count <= 100000 && plans.count <= 100000, "This file contains too many records.")
         func unique<T: Identifiable>(_ items: [T]) -> Bool where T.ID: Hashable { Set(items.map(\.id)).count == items.count }
         try require(unique(accounts) && unique(groups) && unique(categories) && unique(entries) && unique(plans), "This file has duplicate record identifiers.")
@@ -112,6 +146,10 @@ struct Ledger: Codable {
             try require(Self.date(e.date) != nil && name(e.name) && e.cents > 0 && bounded(e.cents) && e.note.count <= 2000, "A transaction has an invalid date, description, amount, or note.")
             if e.income { try require(e.categoryID == nil && e.groupID == nil && e.bucket == nil, "Income cannot be assigned to an expense category.") }
             else { try require(e.categoryID.map(categoryIDs.contains) == true && e.groupID.map(groupIDs.contains) == true && e.bucket != nil, "A transaction references a missing category or group.") }
+        }
+        try require((expectedIncome?.count ?? 0) <= 12000, "This file contains too many income plans.")
+        for (month, plan) in expectedIncome ?? [:] {
+            try require(month.count == 7 && Self.date(month + "-01") != nil && plan.cents >= 0 && bounded(plan.cents), "An expected income amount or month is invalid.")
         }
         var keys = Set<String>()
         for p in plans {
@@ -131,6 +169,7 @@ struct Ledger: Codable {
             ("Savings contributions", .savings, ["Emergency fund", "Vacation"], 25000)
         ]
         let month = month(now)
+        l.setExpectedIncome(month: month, cents: 300000, estimated: false)
         for (name, bucket, names, cents) in specs {
             let g = Group(name: name, bucket: bucket); l.groups.append(g)
             l.categories += names.map { Category(name: $0, groupID: g.id) }
@@ -168,7 +207,8 @@ final class LedgerDisk {
     func save(_ ledger: Ledger) throws {
         try ledger.validate()
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(ledger)
+        var snapshot = ledger; snapshot.version = 2
+        let data = try encoder.encode(snapshot)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         _ = try backup()
         try data.write(to: url, options: .atomic)

@@ -60,7 +60,7 @@ enum Page: String, CaseIterable, Identifiable {
     } }
 }
 struct Editor: Identifiable {
-    enum Kind { case account, group, category, entry, plan }
+    enum Kind { case account, group, category, entry, plan, income }
     let id = UUID()
     var kind: Kind
     var record: UUID? = nil
@@ -210,11 +210,12 @@ struct Content: View {
     var visibleGroups: [Group] { l.groups.filter { !$0.archived || l.planned(month, group: $0.id) != 0 || l.total(month, group: $0.id) != 0 } }
     var budget: some View {
         VStack(alignment: .leading, spacing: 16) {
+            incomePlan
             HStack {
-                Button("Copy previous month's plan") {
+                Button("Copy previous month's budget amounts") {
                     let previous = Ledger.month(Calendar.current.date(byAdding: .month, value: -1, to: Ledger.date(month + "-01")!)!)
                     guard l.plans.contains(where: { $0.month == previous }) else { store.error = "There isn't a plan for \(monthTitle(previous)) yet."; return }
-                    ask("Replace \(monthTitle(month))'s plan with \(monthTitle(previous))'s amounts? Transactions will stay the same.") { store.change { ledger in
+                    ask("Replace \(monthTitle(month))'s budget amounts with \(monthTitle(previous))'s amounts? Planned income and transactions will stay the same.") { store.change { ledger in
                         let copy = ledger.plans.filter { $0.month == previous }
                         ledger.plans.removeAll { $0.month == month }
                         for p in copy { ledger.setPlan(month: month, group: p.groupID, cents: p.cents) }
@@ -237,6 +238,36 @@ struct Content: View {
                 }
             }
             Text("Budget broad groups. Pick a detailed category when recording a transaction. Savings contributions count toward your plan, but not your spending total.").font(.callout).foregroundStyle(.secondary)
+        }
+    }
+    var incomePlan: some View {
+        card {
+            HStack {
+                Text("Income plan for " + monthTitle(month)).font(.title3.weight(.medium))
+                Spacer()
+                Button("Edit planned income") { editor = Editor(kind: .income, month: month) }.disabled(!store.ready)
+            }
+            HStack(alignment: .top, spacing: 28) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Planned income").font(.callout).foregroundStyle(.secondary)
+                    Text(l.expectedIncome?[month].map { Ledger.money($0.cents) } ?? "Not set").font(.title2)
+                    if l.expectedIncome?[month]?.estimated == true { Text("Estimated monthly average").font(.caption).foregroundStyle(.secondary) }
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Income recorded").font(.callout).foregroundStyle(.secondary)
+                    Text(Ledger.money(l.total(month, income: true))).font(.title2)
+                }
+                Spacer()
+                VStack(alignment: .leading, spacing: 6) {
+                    if let expected = l.expectedIncome?[month] {
+                        let remaining = expected.cents - l.planned(month)
+                        Text(remaining < 0 ? "Over planned income" : "Left to budget (planned)").font(.callout).foregroundStyle(.secondary)
+                        Text(Ledger.money(abs(remaining))).font(.title2)
+                        Text("Planned income minus planned budget groups").font(.caption).foregroundStyle(.secondary)
+                    } else { Text("Set planned income to see how much is left to budget.").font(.callout).foregroundStyle(.secondary) }
+                }
+            }
+            Text("A planning amount, not money received or a bank balance. You can type it yourself or use a one-time paycheck estimate.").font(.callout).foregroundStyle(.secondary)
         }
     }
     var structureView: some View {
@@ -311,6 +342,7 @@ struct Content: View {
             card {
                 Text("Everyday questions").font(.title3.weight(.medium))
                 helpItem("How do I turn on dark mode?", "Use Appearance at the bottom of the sidebar. System follows your Mac's light or dark appearance; Light and Dark keep that choice just for Rose. Your choice is remembered when you reopen the app.")
+                helpItem("How do I plan income?", "In Budget, choose a month and select Edit planned income. Enter your planned take-home total, or use Calculate an estimate for me with one paycheck amount and frequency. Use estimate fills the field once; Save commits the monthly plan. Weekly and every-two-week estimates are annual averages, so actual months can differ. You can edit the result afterward. Planned income creates no transactions and never changes account balances. Left to budget subtracts all planned Needs, Wants, and Savings from planned income. Copy previous month's budget amounts leaves planned income unchanged.")
                 helpItem("How do categories work?", "Needs, Wants, and Savings contain broad budget groups. Detailed categories fill those groups automatically. For example, Groceries fills the Food budget. You only choose the detailed category when adding a transaction.")
                 helpItem("Why didn't my account balance change?", "Balances are manual snapshots. Recording a transaction updates reports and your budget only. Check your bank and edit the account balance when you want a fresh snapshot. Its update date shows when you last did that.")
                 helpItem("How do I record savings?", "Choose a category in a Savings group when putting money aside. This uses part of your monthly plan without counting as spending. Moving between your own accounts isn't income; edit their balances separately. This version tracks positive contributions, not savings withdrawals or automatic transfers.")

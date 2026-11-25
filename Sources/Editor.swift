@@ -17,6 +17,10 @@ struct EditSheet: View {
     @ViewState private var income: Bool = false
     @ViewState private var moveHistory: Bool = false
     @ViewState private var error: String?
+    @ViewState private var paycheck: String = ""
+    @ViewState private var frequency: PayFrequency = .biweekly
+    @ViewState private var estimatorOpen: Bool = false
+    @ViewState private var estimatedAmount: String?
     var l: Ledger { store.ledger }
     var title: String {
         switch editor.kind {
@@ -25,6 +29,7 @@ struct EditSheet: View {
         case .group: return editor.record == nil ? "Add budget group" : "Edit budget group"
         case .category: return editor.record == nil ? "Add category" : "Edit category"
         case .plan: return "Edit monthly plan"
+        case .income: return "Edit planned income"
         }
     }
     var availableCategories: [Category] {
@@ -78,6 +83,25 @@ struct EditSheet: View {
                     }
                     TextField("Note (optional)", text: $note, axis: .vertical).lineLimit(2...4)
                     Text("Enter a positive amount, without commas. Transactions don't change account balances.").font(.caption).foregroundStyle(.secondary)
+                case .income:
+                    Text("Planned income for " + editor.month).font(.headline)
+                    TextField("Planned take-home income ($)", text: $amount)
+                    if estimatedAmount == amount {
+                        Text("Estimated monthly average — actual income may differ.").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Text("Enter the total you plan to receive after taxes and deductions. This is a plan, not income received. It does not create transactions or change balances.").font(.caption).foregroundStyle(.secondary)
+                    Button(estimatorOpen ? "Hide paycheck estimator" : "Calculate an estimate for me") { estimatorOpen.toggle() }
+                    if estimatorOpen {
+                        VStack(alignment: .leading, spacing: 12) {
+                            TextField("Take-home amount per paycheck ($)", text: $paycheck)
+                            Picker("How often are you paid?", selection: $frequency) {
+                                ForEach(PayFrequency.allCases) { Text($0.rawValue).tag($0) }
+                            }
+                            Text("Estimate only: " + frequency.explanation + ". Annual average, rounded to cents. Actual months may have fewer or more paychecks; this does not predict payday dates or calculate taxes.").font(.caption).foregroundStyle(.secondary)
+                            Button("Use estimate") { fillEstimate() }
+                            Text("Fills the planned-income field once. You can edit it afterward. Save applies it to this month; Cancel discards changes.").font(.caption).foregroundStyle(.secondary)
+                        }.padding(.top, 10)
+                    }
                 case .plan:
                     Text(l.groups.first { $0.id == editor.record }?.name ?? "Budget group").font(.headline)
                     Text(editor.month)
@@ -87,7 +111,7 @@ struct EditSheet: View {
             }.formStyle(.grouped)
             if let error { Text(error).foregroundStyle(.red).font(.callout).accessibilityLabel("Error: " + error) }
             HStack { Spacer(); Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction); Button("Save") { save() }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction) }
-        }.padding(26).foregroundStyle(palette.text).tint(palette.accent).background(palette.background).frame(width: 590).onAppear(perform: load)
+        }.padding(26).foregroundStyle(palette.text).tint(palette.accent).background(palette.background).frame(width: 590, height: editor.kind == .income ? 670 : nil).onAppear(perform: load)
     }
     func dollars(_ cents: Int) -> String { String(format: "%.2f", Double(cents) / 100) }
     func load() {
@@ -103,13 +127,24 @@ struct EditSheet: View {
             if editor.month == Ledger.month() { date = Date() }
             if let e = l.entries.first(where: { $0.id == editor.record }) { name = e.name; amount = dollars(e.cents); note = e.note; date = Ledger.date(e.date) ?? Date(); income = e.income; categoryID = e.categoryID }
         case .plan: amount = dollars(l.planned(editor.month, group: editor.record))
+        case .income:
+            if let plan = l.expectedIncome?[editor.month] {
+                amount = dollars(plan.cents)
+                if plan.estimated { estimatedAmount = amount }
+            }
         }
+    }
+    func fillEstimate() {
+        do {
+            let cents = try frequency.estimate(cents: Ledger.amount(paycheck))
+            amount = dollars(cents); estimatedAmount = amount; error = nil
+        } catch { self.error = error.localizedDescription }
     }
     func save() {
         do {
             var copy = l
             let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-            if editor.kind != .plan && (cleanName.isEmpty || cleanName.count > 120) { throw AppError.message("Enter a name or description of 1–120 characters.") }
+            if editor.kind != .plan && editor.kind != .income && (cleanName.isEmpty || cleanName.count > 120) { throw AppError.message("Enter a name or description of 1–120 characters.") }
             func normalized(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current) }
             switch editor.kind {
             case .account:
@@ -137,6 +172,8 @@ struct EditSheet: View {
                     if let old = copy.entries.first(where: { $0.id == editor.record }), !old.income && old.categoryID == c.id { e.groupID = old.groupID; e.bucket = old.bucket }
                 }
                 if let i = copy.entries.firstIndex(where: { $0.id == e.id }) { copy.entries[i] = e } else { copy.entries.append(e) }
+            case .income:
+                copy.setExpectedIncome(month: editor.month, cents: try Ledger.amount(amount), estimated: estimatedAmount == amount)
             case .plan:
                 guard let group = editor.record else { throw AppError.message("Choose a budget group.") }
                 copy.setPlan(month: editor.month, group: group, cents: try Ledger.amount(amount))

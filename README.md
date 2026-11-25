@@ -43,6 +43,28 @@ later, on Apple Silicon or Intel. See [Releases](https://github.com/ajvalentino/
 for version details. Financial data stays on your Mac when you replace the app
 with a newer version; this preview does not update automatically.
 
+## See it before downloading
+
+Real app screenshots using **fictional demo data**. No personal financial
+records are shown. Click an image to view it full size.
+
+### Overview in light mode
+
+![Rose Finance Home in light mode with fictional income, spending, and budget totals](Assets/Screenshots/home-light.png)
+
+### Budget in dark mode
+
+Planned income stays clearly separate from income recorded in transactions.
+
+![Rose Finance Budget in dark mode showing planned income, recorded income, and planned money left to budget](Assets/Screenshots/budget-dark.png)
+
+### Optional paycheck estimate
+
+A take-home paycheck and pay frequency fill a planned amount once. The result
+is labeled as an estimate, remains editable, and only saves when you choose Save.
+
+<img src="Assets/Screenshots/income-estimator.png" alt="Planned-income editor estimating a monthly average from a fictional paycheck, with estimate disclaimers" width="590" />
+
 ## Open a locally built app
 
 The built app is `dist/Rose Finance.app`. Double-click it, or copy it to
@@ -63,6 +85,8 @@ remaining distribution step if this should install without that friction.
 - Light and dark mode, with a remembered Appearance choice in the sidebar.
   System follows your Mac by default.
 - Needs / Wants / Savings → broad budget groups → detailed categories.
+- Monthly **Planned income**, kept separate from **Income recorded**, with an
+  optional one-time take-home paycheck estimator and planned money left to budget.
 - Positive income, spending, and savings-contribution entries in USD.
 - Editable names, amounts, dates, notes, category mapping, and archival state.
 - Fictional initial balances, a small sample month, and an explicit example reset
@@ -83,11 +107,37 @@ current type. This can make a past Home type summary compare a current plan
 classification to historical transaction classifications. Group-level totals
 remain linked by stable group IDs. Archive instead of deleting structural items.
 
+## Planning income
+
+In Budget, choose **Edit planned income**. Type your monthly take-home total,
+or expand **Calculate an estimate for me**, enter one take-home paycheck and
+choose how often it arrives. **Use estimate** fills the planned-income field
+once; **Save** applies it to that month. It never tracks or updates paychecks
+automatically, and you can edit the filled value before saving or later.
+Cancel discards the editor's changes.
+
+The estimator uses annual monthly averages, rounded to the nearest cent:
+weekly × 52 ÷ 12; every two weeks × 26 ÷ 12; twice a month × 2; monthly as entered.
+These follow the [FDIC Money Smart monthly conversion convention](https://catalog.fdic.gov/catalog/sfc/servlet.shepherd/version/download/068t000000bhAKqAAM).
+Results are labeled **Estimated monthly average**. Actual months can have fewer
+or more paychecks, and variable pay will differ. Enter take-home pay: no tax
+calculation, payday calendar, or guaranteed income is implied.
+
+**Left to budget (planned)** subtracts all planned Needs, Wants, and Savings
+from Planned income. It is not money received or available in a bank account.
+Recorded income still comes only from transactions. Copying the previous
+month's budget amounts leaves Planned income unchanged.
+
 ## Data and portability
 
 Working data: `~/Library/Application Support/Rose Finance/Finance.json`.
 Automatic backups: the adjacent `Backups/` folder, one before every change.
 Backups currently accumulate; no automatic deletion policy is applied.
+
+Version 0.1.3 reads older version-1 backups with no planned income set.
+New saves/backups use schema version 2; use 0.1.3 or newer to open them. Older
+app versions reject version-2 files rather than silently dropping income plans.
+Automatic backups preserve the previous file before each save.
 
 The app and data are separate. Replacing the `.app` keeps existing data. On
 another Mac, open the app, then Help → Restore backup and select an exported
