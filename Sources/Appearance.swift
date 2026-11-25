@@ -1,10 +1,18 @@
 import SwiftUI
+import AppKit
 
 enum AppAppearance: String, CaseIterable, Identifiable {
     case system = "System", light = "Light", dark = "Dark"
     var id: String { rawValue }
-    var colorScheme: ColorScheme? {
-        switch self { case .system: return nil; case .light: return .light; case .dark: return .dark }
+    // Own appearance at the AppKit boundary. A SwiftUI preferredColorScheme
+    // override can stick when changed back to nil on an existing Mac window.
+    @MainActor func apply(to target: NSApplication? = nil) {
+        let application = target ?? NSApplication.shared
+        switch self {
+        case .system: application.appearance = nil
+        case .light: application.appearance = NSAppearance(named: .aqua)
+        case .dark: application.appearance = NSAppearance(named: .darkAqua)
+        }
     }
 }
 

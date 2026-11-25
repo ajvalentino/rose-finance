@@ -70,7 +70,9 @@ struct Editor: Identifiable {
     @StateObject private var store = Store()
     @AppStorage("appearance") private var appearance = AppAppearance.system
     var body: some Scene {
-        Window("Rose Finance", id: "main") { Content().environmentObject(store).preferredColorScheme(appearance.colorScheme) }
+        Window("Rose Finance", id: "main") { Content().environmentObject(store)
+            .onAppear { appearance.apply() }
+            .onChange(of: appearance) { value in value.apply() } }
             .defaultSize(width: 1080, height: 760)
             .commands { CommandGroup(replacing: .newItem) {} }
     }
