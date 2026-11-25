@@ -1,7 +1,5 @@
 # Rose Finance 🌷
 
-<img src="Assets/Rose.png" alt="Rose Finance app icon: a blush rose beside a flowing F on a muted red background" width="160" />
-
 Rose is a simple, offline Mac app for keeping track of account balances,
 planning a budget, and recording transactions. No bank login, subscription,
 or server to keep running. Just your money, on your Mac.
