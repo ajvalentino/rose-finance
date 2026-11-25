@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")"
-mkdir -p .build/module-cache dist/'Rose Finance.app'/Contents/MacOS
+mkdir -p .build/module-cache dist/'Rose Finance.app'/Contents/MacOS dist/'Rose Finance.app'/Contents/Resources
+./make-icon.sh
+cp .build/RoseFinance.icns 'dist/Rose Finance.app/Contents/Resources/RoseFinance.icns'
 SDK=$(xcrun --show-sdk-path)
 for ARCH in arm64 x86_64; do
     swiftc -swift-version 5 -O -sdk "$SDK" -target "$ARCH-apple-macosx13.0" -module-cache-path .build/module-cache Sources/*.swift -o ".build/RoseFinance-$ARCH"
@@ -16,12 +18,14 @@ cat > 'dist/Rose Finance.app/Contents/Info.plist' <<'PLIST'
 <key>CFBundleName</key><string>Rose Finance</string>
 <key>CFBundleDisplayName</key><string>Rose Finance</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.1.0</string>
-<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleIconFile</key><string>RoseFinance.icns</string>
+<key>CFBundleShortVersionString</key><string>0.1.1</string>
+<key>CFBundleVersion</key><string>2</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
 codesign --force --sign - 'dist/Rose Finance.app'
 ditto -c -k --norsrc --noextattr --noacl --keepParent 'dist/Rose Finance.app' 'dist/Rose-Finance-Mac.zip'
+(cd dist && shasum -a 256 Rose-Finance-Mac.zip > SHA256SUMS.txt)
 printf 'Built companion/dist/Rose Finance.app and Rose-Finance-Mac.zip (Apple Silicon + Intel, macOS 13+).\n'
