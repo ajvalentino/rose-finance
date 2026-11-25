@@ -1,0 +1,35 @@
+# Keep the private development notes local.
+CHANGELOG.md
+changelog.md
+
+# Generated executables, compiler caches, and editor metadata.
+.build/
+dist/
+.DS_Store
+._*
+*.log
+*.pid
+*.swp
+.vscode/
+.idea/
+
+# Financial records, backups, exports, configuration, and credentials.
+Finance.json
+*.json
+*.jsonl
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.csv
+*.xlsx
+*.zip
+*.app/
+data/
+Backups/
+backups/
+exports/
+.env
+.env.*
+*.pem
+*.key
