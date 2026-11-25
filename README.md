@@ -60,6 +60,8 @@ remaining distribution step if this should install without that friction.
 ## What is included
 
 - Home, editable Accounts, monthly Budget, Transactions, Year, and Help.
+- Light and dark mode, with a remembered Appearance choice in the sidebar.
+  System follows your Mac by default.
 - Needs / Wants / Savings → broad budget groups → detailed categories.
 - Positive income, spending, and savings-contribution entries in USD.
 - Editable names, amounts, dates, notes, category mapping, and archival state.

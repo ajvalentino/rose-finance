@@ -46,10 +46,6 @@ typealias ViewState<T> = SwiftUI.State<T>
     }
 }
 
-let rose = Color(red: 0.60, green: 0.22, blue: 0.36)
-let blush = Color(red: 0.98, green: 0.95, blue: 0.95)
-let ink = Color(red: 0.22, green: 0.15, blue: 0.19)
-
 enum Page: String, CaseIterable, Identifiable {
     case home = "Home", accounts = "Accounts", budget = "Budget", transactions = "Transactions", year = "Year", help = "Help"
     var id: String { rawValue }
@@ -72,8 +68,9 @@ struct Editor: Identifiable {
 }
 @main struct RoseFinanceApp: App {
     @StateObject private var store = Store()
+    @AppStorage("appearance") private var appearance = AppAppearance.system
     var body: some Scene {
-        Window("Rose Finance", id: "main") { Content().environmentObject(store).tint(rose).preferredColorScheme(.light) }
+        Window("Rose Finance", id: "main") { Content().environmentObject(store).preferredColorScheme(appearance.colorScheme) }
             .defaultSize(width: 1080, height: 760)
             .commands { CommandGroup(replacing: .newItem) {} }
     }
@@ -81,6 +78,10 @@ struct Editor: Identifiable {
 
 struct Content: View {
     @EnvironmentObject var store: Store
+    @Environment(\.colorScheme) private var colorScheme
+    @AppStorage("appearance") private var appearance = AppAppearance.system
+    private var palette: Palette { Palette(scheme: colorScheme) }
+    private var rose: Color { palette.accent }
     @ViewState private var page: Page = .home
     @ViewState private var month: String = Ledger.month()
     @ViewState private var year: String = String(Ledger.month().prefix(4))
@@ -102,14 +103,19 @@ struct Content: View {
                     Button { page = item } label: {
                         Label(item.rawValue, systemImage: item.icon).font(.system(size: 14, weight: page == item ? .semibold : .regular))
                             .frame(maxWidth: .infinity, alignment: .leading).padding(12)
-                            .background(page == item ? Color.white : .clear, in: RoundedRectangle(cornerRadius: 10))
-                    }.buttonStyle(.plain).foregroundStyle(page == item ? rose : ink)
+                            .background(page == item ? palette.selected : .clear, in: RoundedRectangle(cornerRadius: 10))
+                    }.buttonStyle(.plain).foregroundStyle(page == item ? rose : palette.text)
                 }
                 Spacer()
+                Picker("Appearance", selection: $appearance) {
+                    ForEach(AppAppearance.allCases) { Text($0.rawValue).tag($0) }
+                }.pickerStyle(.menu).font(.caption)
+                    .help("System follows your Mac. Light or Dark keeps your choice for this app.")
+                    .padding(.bottom, 12)
                 Image(systemName: "lock.shield").foregroundStyle(rose)
                 Text("Just on this Mac").font(.callout.weight(.medium))
                 Text("No bank connection.\nNo account to sign into.").font(.caption).foregroundStyle(.secondary)
-            }.padding(24).frame(width: 205).background(Color(red: 0.96, green: 0.88, blue: 0.90))
+            }.padding(24).frame(width: 205).background(palette.sidebar)
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 6) {
@@ -127,7 +133,7 @@ struct Content: View {
                 }
                 if l.sample && store.ready {
                     HStack { Image(systemName: "sparkles"); Text("You're exploring fictional example data."); Spacer(); Button("Start my own") { ask("Clear the example accounts, transactions, and budget amounts? Your category structure will stay.") { store.change { $0.clearExamples() } } } }
-                        .font(.callout).padding(14).background(.white, in: RoundedRectangle(cornerRadius: 12))
+                        .font(.callout).padding(14).background(palette.surface, in: RoundedRectangle(cornerRadius: 12))
                 }
                 if !store.ready {
                     card { Text("Your data needs attention").font(.title2); Text("The original file is untouched. Open Help to restore a backup."); Button("Open Help") { page = .help } }
@@ -145,8 +151,8 @@ struct Content: View {
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 20)
                 }
                 HStack { Text(store.message).font(.caption).foregroundStyle(.secondary); Spacer(); if page != .help { Button("Need a hand?") { page = .help }.buttonStyle(.plain).font(.caption).foregroundStyle(rose) } }
-            }.padding(28).frame(maxWidth: .infinity).background(blush)
-        }.foregroundStyle(ink).frame(minWidth: 880, minHeight: 640)
+            }.padding(28).frame(maxWidth: .infinity).background(palette.background)
+        }.foregroundStyle(palette.text).tint(rose).frame(minWidth: 880, minHeight: 640)
             .sheet(item: $editor) { EditSheet(editor: $0).environmentObject(store).tint(rose) }
             .alert("Couldn't complete that", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("OK") { store.error = nil } } message: { Text(store.error ?? "") }
             .alert("Please confirm", isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } })) {
@@ -160,7 +166,7 @@ struct Content: View {
         return d.formatted(.dateTime.month(.wide).year())
     }
     func card<Inner: View>(@ViewBuilder content: () -> Inner) -> some View {
-        VStack(alignment: .leading, spacing: 14, content: content).frame(maxWidth: .infinity, alignment: .leading).padding(22).background(.white, in: RoundedRectangle(cornerRadius: 16))
+        VStack(alignment: .leading, spacing: 14, content: content).frame(maxWidth: .infinity, alignment: .leading).padding(22).background(palette.surface, in: RoundedRectangle(cornerRadius: 16))
     }
     func metric(_ label: String, _ value: Int, _ caption: String) -> some View {
         card { Text(label).font(.callout).foregroundStyle(.secondary); Text(Ledger.money(value)).font(.system(size: 25, weight: .medium, design: .rounded)); Text(caption).font(.caption).foregroundStyle(.secondary) }
@@ -304,6 +310,7 @@ struct Content: View {
             }
             card {
                 Text("Everyday questions").font(.title3.weight(.medium))
+                helpItem("How do I turn on dark mode?", "Use Appearance at the bottom of the sidebar. System follows your Mac's light or dark appearance; Light and Dark keep that choice just for Rose. Your choice is remembered when you reopen the app.")
                 helpItem("How do categories work?", "Needs, Wants, and Savings contain broad budget groups. Detailed categories fill those groups automatically. For example, Groceries fills the Food budget. You only choose the detailed category when adding a transaction.")
                 helpItem("Why didn't my account balance change?", "Balances are manual snapshots. Recording a transaction updates reports and your budget only. Check your bank and edit the account balance when you want a fresh snapshot. Its update date shows when you last did that.")
                 helpItem("How do I record savings?", "Choose a category in a Savings group when putting money aside. This uses part of your monthly plan without counting as spending. Moving between your own accounts isn't income; edit their balances separately. This version tracks positive contributions, not savings withdrawals or automatic transfers.")

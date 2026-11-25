@@ -3,6 +3,8 @@ import SwiftUI
 struct EditSheet: View {
     @EnvironmentObject var store: Store
     @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    private var palette: Palette { Palette(scheme: colorScheme) }
     let editor: Editor
     @ViewState private var name: String = ""
     @ViewState private var amount: String = ""
@@ -85,7 +87,7 @@ struct EditSheet: View {
             }.formStyle(.grouped)
             if let error { Text(error).foregroundStyle(.red).font(.callout).accessibilityLabel("Error: " + error) }
             HStack { Spacer(); Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction); Button("Save") { save() }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction) }
-        }.padding(26).frame(width: 590).onAppear(perform: load)
+        }.padding(26).foregroundStyle(palette.text).tint(palette.accent).background(palette.background).frame(width: 590).onAppear(perform: load)
     }
     func dollars(_ cents: Int) -> String { String(format: "%.2f", Double(cents) / 100) }
     func load() {
