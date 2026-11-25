@@ -1,7 +1,5 @@
 # Rose Finance 🌷
 
-A little less spreadsheet. A little more pink.
-
 Rose is a simple, offline Mac app for keeping track of account balances,
 planning a budget, and recording transactions. No bank login, subscription,
 or server to keep running. Just your money, on your Mac.
@@ -10,7 +8,7 @@ or server to keep running. Just your money, on your Mac.
 
 My own finance setup started as a spreadsheet and grew into a personal dashboard
 with investment calculations and a bunch of features specific to me. When I
-wanted to make a version for my girlfriend, bringing all of that along felt
+wanted to make a version for my partner, bringing all of that along felt
 like a lot of dashboard just to log groceries.
 
 So we started fresh: editable accounts, broad budget groups with more detailed
@@ -24,7 +22,8 @@ connect to the original dashboard.
 This is a **vibe-coded app**, built with **OpenAI Codex** using **6.1 Sol**
 with **High reasoning**. I brought the idea, chose the features, and worked
 through the behavior with the coding agent. The code, tests, packaging, and
-documentation were developed through prompts and iteration.
+documentation were developed through prompts and iteration. All in all it
+took about 20 minutes.
 
 That model credit describes how the app was made. You don't need an AI account
 or API key to use Rose, and the app doesn't send your finances to an AI service.
