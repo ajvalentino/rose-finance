@@ -84,6 +84,10 @@ remaining distribution step if this should install without that friction.
 - Home, editable Accounts, monthly Budget, Transactions, Year, and Help.
 - Light and dark mode, with a remembered Appearance choice in the sidebar.
   System follows your Mac by default.
+- Budget separates **Actual** (bars, recorded group pie, group/category comparisons,
+  and filtered transaction links) from **Plan** (planned income, allocation pie,
+  and editing). Category rows share the broad group's plan; they are not separate
+  planned amounts.
 - Needs / Wants / Savings → broad budget groups → detailed categories.
 - Monthly **Planned income**, kept separate from **Income recorded**, with an
   optional one-time take-home paycheck estimator and planned money left to budget.
@@ -109,7 +113,7 @@ remain linked by stable group IDs. Archive instead of deleting structural items.
 
 ## Planning income
 
-In Budget, choose **Edit planned income**. Type your monthly take-home total,
+In Budget → **Plan**, choose **Edit planned income**. Type your monthly take-home total,
 or expand **Calculate an estimate for me**, enter one take-home paycheck and
 choose how often it arrives. **Use estimate** fills the planned-income field
 once; **Save** applies it to that month. It never tracks or updates paychecks

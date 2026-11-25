@@ -90,6 +90,8 @@ struct Content: View {
     @ViewState private var monthDate: Date = Date()
     @ViewState private var query: String = ""
     @ViewState private var categoryFilter: UUID?
+    @ViewState private var groupFilter: UUID?
+    @ViewState private var budgetSection: String = "Actual"
     @ViewState private var kindFilter: String = "All"
     @ViewState private var structure: Bool = false
     @ViewState private var editor: Editor?
@@ -211,8 +213,23 @@ struct Content: View {
     }
     var visibleGroups: [Group] { l.groups.filter { !$0.archived || l.planned(month, group: $0.id) != 0 || l.total(month, group: $0.id) != 0 } }
     var budget: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Picker("Budget section", selection: $budgetSection) {
+                Text("Actual").tag("Actual")
+                Text("Plan").tag("Plan")
+            }.pickerStyle(.segmented).frame(maxWidth: 320)
+            if budgetSection == "Actual" {
+                ActualBudget(ledger: l, month: month) { group, category in
+                    groupFilter = group; categoryFilter = category
+                    query = ""; kindFilter = "All"; page = .transactions
+                }
+            } else { planBudget }
+        }
+    }
+    var planBudget: some View {
         VStack(alignment: .leading, spacing: 16) {
             incomePlan
+            GroupPie(ledger: l, month: month, planned: true)
             HStack {
                 Button("Copy previous month's budget amounts") {
                     let previous = Ledger.month(Calendar.current.date(byAdding: .month, value: -1, to: Ledger.date(month + "-01")!)!)
@@ -230,10 +247,10 @@ struct Content: View {
                 card {
                     Text(bucket.rawValue).font(.title3.weight(.medium))
                     ForEach(visibleGroups.filter { $0.bucket == bucket }) { group in
-                        let planned = l.planned(month, group: group.id), actual = l.total(month, group: group.id)
+                        let planned = l.planned(month, group: group.id)
                         HStack {
-                            VStack(alignment: .leading, spacing: 4) { Text(group.name).font(.headline); Text(actual > planned ? "Over your plan by \(Ledger.money(actual - planned))" : "\(Ledger.money(planned - actual)) remaining").font(.caption).foregroundStyle(.secondary) }
-                            Spacer(); VStack(alignment: .trailing) { Text("\(Ledger.money(actual)) recorded"); Text("\(Ledger.money(planned)) planned").font(.caption).foregroundStyle(.secondary) }
+                            VStack(alignment: .leading, spacing: 4) { Text(group.name).font(.headline); Text("\(group.bucket.rawValue) · Shared by its transaction categories").font(.caption).foregroundStyle(.secondary) }
+                            Spacer(); VStack(alignment: .trailing) { Text("\(Ledger.money(planned)) planned").font(.caption).foregroundStyle(.secondary) }
                             Button("Edit plan") { editor = Editor(kind: .plan, record: group.id, month: month) }.disabled(!store.ready)
                         }.padding(.vertical, 5)
                     }
@@ -254,10 +271,6 @@ struct Content: View {
                     Text("Planned income").font(.callout).foregroundStyle(.secondary)
                     Text(l.expectedIncome?[month].map { Ledger.money($0.cents) } ?? "Not set").font(.title2)
                     if l.expectedIncome?[month]?.estimated == true { Text("Estimated monthly average").font(.caption).foregroundStyle(.secondary) }
-                }
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Income recorded").font(.callout).foregroundStyle(.secondary)
-                    Text(Ledger.money(l.total(month, income: true))).font(.title2)
                 }
                 Spacer()
                 VStack(alignment: .leading, spacing: 6) {
@@ -287,7 +300,7 @@ struct Content: View {
     }
     var filteredEntries: [Entry] {
         l.entries.filter { e in
-            e.date.hasPrefix(month) && (categoryFilter == nil || e.categoryID == categoryFilter) &&
+            e.date.hasPrefix(month) && (groupFilter == nil || (!e.income && e.groupID == groupFilter)) && (categoryFilter == nil || e.categoryID == categoryFilter) &&
             (kindFilter == "All" || (kindFilter == "Income" ? e.income : kindFilter == "Savings" ? e.bucket == .savings : !e.income && e.bucket != .savings)) &&
             (query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (e.name + " " + e.note + " " + (l.categories.first { $0.id == e.categoryID }?.name ?? "Income")).localizedStandardContains(query.trimmingCharacters(in: .whitespacesAndNewlines)))
         }.sorted { $0.date > $1.date }
@@ -298,6 +311,14 @@ struct Content: View {
                 TextField("Search descriptions, categories, or notes", text: $query).textFieldStyle(.roundedBorder)
                 Picker("Type", selection: $kindFilter) { ForEach(["All", "Income", "Spending", "Savings"], id: \.self) { Text($0).tag($0) } }.frame(width: 150)
                 Button("Add transaction", systemImage: "plus") { editor = Editor(kind: .entry, month: month) }.buttonStyle(.borderedProminent).disabled(!store.ready)
+            }
+            if let group = groupFilter {
+                HStack {
+                    Label("Budget group: " + (l.groups.first { $0.id == group }?.name ?? "Group"), systemImage: "line.3.horizontal.decrease.circle")
+                    Spacer()
+                    Button("Clear budget filters") { groupFilter = nil; categoryFilter = nil; query = ""; kindFilter = "All" }
+                    Button("Back to Budget") { page = .budget }
+                }.font(.callout)
             }
             Picker("Category", selection: $categoryFilter) {
                 Text("All categories").tag(nil as UUID?)
@@ -344,7 +365,8 @@ struct Content: View {
             card {
                 Text("Everyday questions").font(.title3.weight(.medium))
                 helpItem("How do I turn on dark mode?", "Use Appearance at the bottom of the sidebar. System follows your Mac's light or dark appearance; Light and Dark keep that choice just for Rose. Your choice is remembered when you reopen the app.")
-                helpItem("How do I plan income?", "In Budget, choose a month and select Edit planned income. Enter your planned take-home total, or use Calculate an estimate for me with one paycheck amount and frequency. Use estimate fills the field once; Save commits the monthly plan. Weekly and every-two-week estimates are annual averages, so actual months can differ. You can edit the result afterward. Planned income creates no transactions and never changes account balances. Left to budget subtracts all planned Needs, Wants, and Savings from planned income. Copy previous month's budget amounts leaves planned income unchanged.")
+                helpItem("What are Actual and Plan in Budget?", "Actual shows recorded Needs, Wants, and Savings against the plan, a group pie, and group/category details. The Actual pie includes savings contributions as well as spending. See transactions opens the same month's list with that group or category filtered; Clear budget filters removes those filters. Plan contains planned income, a planned-allocation pie, group amounts, copying the previous month's budget, and group/category editing. Detailed categories share their broad group's budget; they have no independent planned amounts.")
+                helpItem("How do I plan income?", "In Budget → Plan, choose a month and select Edit planned income. Enter your planned take-home total, or use Calculate an estimate for me with one paycheck amount and frequency. Use estimate fills the field once; Save commits the monthly plan. Weekly and every-two-week estimates are annual averages, so actual months can differ. You can edit the result afterward. Planned income creates no transactions and never changes account balances. Left to budget subtracts all planned Needs, Wants, and Savings from planned income. Copy previous month's budget amounts leaves planned income unchanged.")
                 helpItem("How do categories work?", "Needs, Wants, and Savings contain broad budget groups. Detailed categories fill those groups automatically. For example, Groceries fills the Food budget. You only choose the detailed category when adding a transaction.")
                 helpItem("Why didn't my account balance change?", "Balances are manual snapshots. Recording a transaction updates reports and your budget only. Check your bank and edit the account balance when you want a fresh snapshot. Its update date shows when you last did that.")
                 helpItem("How do I record savings?", "Choose a category in a Savings group when putting money aside. This uses part of your monthly plan without counting as spending. Moving between your own accounts isn't income; edit their balances separately. This version tracks positive contributions, not savings withdrawals or automatic transfers.")
